@@ -1,0 +1,102 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body { font: 13px Helvetica, Arial; }
+      #m { background: #000; padding: 3px; position: fixed; bottom: 0; width: 100%; }
+      #m input { border: 0; padding: 10px; width: 90%; margin-right: .5%; }
+      #m button { width: 9%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #join { background: #000; padding: 3px; position: fixed; bottom: 40px; right:0; width: 25%; }
+      #join input { border: 0; padding: 10px; width: 60%; margin-right: .5%; }
+      #join button { width: 39%; background: rgb(130, 224, 255); border: none; padding: 10px; }
+      #messages { list-style-type: none; margin: 0; padding: 0; }
+      #messages li { padding: 5px 10px; }
+      #messages li:nth-child(odd) { background: #eee; }
+      .room { background: aqua; padding: 4px 9px; margin-right: 5px; }
+      #rooms { padding: 3px; position: fixed; bottom: 80px; right:0; width: 25%; }
+      #rooms p { text-align: center; font-weight: bold; }
+      #rooms ul { list-style: none; }
+      #rooms input { width: 25%; }
+      #rooms button { width: 25%; float: right;}
+    </style>
+  </head>
+  <body>
+
+    <ul id="messages"></ul>
+
+    <div id="rooms">
+      <p>
+        Rooms
+      </p>
+      <ul>
+        <li><input type="radio" name="room" value="" checked="true">Global</li>
+      </ul>
+    </div>
+
+    <form id="join" action="">
+      <input id="room" autocomplete="off" /><button>Join</button>
+    </form>
+
+    <form id="m" action="">
+      <input id="input" autocomplete="off" /><button>Send</button>
+    </form>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="http://code.jquery.com/jquery-1.11.1.js"></script>
+    <script>
+
+      var socket = io('/chat');
+
+      $('#m').submit(function(){
+        var room = $('#rooms input[type="radio"]:checked').val();
+        if ( room !== '' ) {
+          socket.emit('room message', room, $('#input').val());
+        } else {
+          socket.emit('chat message', $('#input').val());
+        }
+        $('#input').val('');
+        return false;
+      });
+
+      socket.on('chat message', function(msg){
+        $('#messages').append($('<li>').text(msg));
+      });
+
+      socket.on('room message', function( received ){
+        var room = received.room, msg = received.msg;
+        var m = $('#messages').append( $('<li>').text(msg).prepend($('<span>').text(room).addClass('room')) );
+      });
+
+      $('#join').submit( function () {
+        var room = $('#room').val();
+        socket.emit( 'join room', room, function ( err, msg ) {
+          if (err) { throw err; }
+          $('#messages').append($('<li>').text(msg));
+          $('#rooms').append(
+            $('<li>').text(room)
+            .prepend(
+              $('<input>')
+              .attr('type', 'radio')
+              .attr('name', 'room')
+              .attr('value', room)
+            )
+            .append(
+              $('<button>').text('X').addClass('leave-room').data( 'room', room )
+            )
+          );
+
+          $('#room').val('');
+        });
+        return false;
+      });
+
+      $('#rooms').on('click', '.leave-room', function ( e ) {
+        socket.emit('leave room', $(e.target).data('room'));
+        $(e.target).parent().remove();
+      });
+
+    </script>
+  </body>
+</html>
